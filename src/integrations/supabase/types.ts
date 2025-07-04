@@ -9,7 +9,226 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      airlines: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      oil_stock: {
+        Row: {
+          batch_number: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          oil_type_id: string
+          owner: Database["public"]["Enums"]["stock_owner"]
+          owner_airline_id: string | null
+          quantity_received: number
+          quantity_remaining: number
+          received_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          oil_type_id: string
+          owner: Database["public"]["Enums"]["stock_owner"]
+          owner_airline_id?: string | null
+          quantity_received: number
+          quantity_remaining: number
+          received_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          oil_type_id?: string
+          owner?: Database["public"]["Enums"]["stock_owner"]
+          owner_airline_id?: string | null
+          quantity_received?: number
+          quantity_remaining?: number
+          received_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oil_stock_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_stock_oil_type_id_fkey"
+            columns: ["oil_type_id"]
+            isOneToOne: false
+            referencedRelation: "oil_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_stock_owner_airline_id_fkey"
+            columns: ["owner_airline_id"]
+            isOneToOne: false
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oil_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          owner_id: string | null
+          specifications: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          owner_id?: string | null
+          specifications?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          owner_id?: string | null
+          specifications?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oil_types_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oil_usage: {
+        Row: {
+          aircraft_registration: string
+          airline_id: string
+          batch_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          quantity_used: number
+          staff_id: string
+          updated_at: string | null
+          usage_date: string | null
+        }
+        Insert: {
+          aircraft_registration: string
+          airline_id: string
+          batch_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity_used: number
+          staff_id: string
+          updated_at?: string | null
+          usage_date?: string | null
+        }
+        Update: {
+          aircraft_registration?: string
+          airline_id?: string
+          batch_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quantity_used?: number
+          staff_id?: string
+          updated_at?: string | null
+          usage_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oil_usage_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_usage_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "oil_stock"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_usage_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string | null
+          id: string
+          name: string
+          permissions: Json | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          theme_preference: Database["public"]["Enums"]["theme_mode"] | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          permissions?: Json | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          theme_preference?: Database["public"]["Enums"]["theme_mode"] | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          permissions?: Json | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          theme_preference?: Database["public"]["Enums"]["theme_mode"] | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +237,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      stock_owner: "heston" | "customer"
+      theme_mode: "light" | "dark" | "auto"
+      user_role: "admin" | "manager" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +354,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      stock_owner: ["heston", "customer"],
+      theme_mode: ["light", "dark", "auto"],
+      user_role: ["admin", "manager", "staff"],
+    },
   },
 } as const
