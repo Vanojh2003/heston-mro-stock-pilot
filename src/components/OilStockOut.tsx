@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ interface OilStockOutProps {
 
 export const OilStockOut = ({ onBack }: OilStockOutProps) => {
   const [selectedAirline, setSelectedAirline] = useState('');
-  const [selectedOwner, setSelectedOwner] = useState('');
+  const [selectedOwner, setSelectedOwner] = useState<'heston' | 'customer' | ''>('');
   const [selectedOilType, setSelectedOilType] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('');
   const [aircraftReg, setAircraftReg] = useState('');
@@ -93,6 +92,8 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
   };
 
   const fetchAvailableStock = async () => {
+    if (!selectedOwner || !selectedOilType) return;
+    
     const { data, error } = await supabase
       .from('oil_stock')
       .select(`
@@ -101,7 +102,7 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
         airlines(name)
       `)
       .eq('oil_type_id', selectedOilType)
-      .eq('owner', selectedOwner)
+      .eq('owner', selectedOwner as 'heston' | 'customer')
       .gt('quantity_remaining', 0)
       .order('received_date', { ascending: true }); // FIFO
     
@@ -245,7 +246,7 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
 
             <div className="space-y-2">
               <Label htmlFor="owner">Stock Owner</Label>
-              <Select value={selectedOwner} onValueChange={setSelectedOwner} required>
+              <Select value={selectedOwner} onValueChange={(value: 'heston' | 'customer') => setSelectedOwner(value)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select stock owner" />
                 </SelectTrigger>
