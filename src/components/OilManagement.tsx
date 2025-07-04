@@ -18,7 +18,7 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
   const [newAirlineName, setNewAirlineName] = useState('');
   const [newAirlineCode, setNewAirlineCode] = useState('');
   const [newOilTypeName, setNewOilTypeName] = useState('');
-  const [selectedOwnerForOil, setSelectedOwnerForOil] = useState('');
+  const [selectedAirlineForOil, setSelectedAirlineForOil] = useState('');
   const [airlines, setAirlines] = useState<any[]>([]);
   const [oilTypes, setOilTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,18 +100,18 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
         .from('oil_types')
         .insert([{
           name: newOilTypeName,
-          owner_id: selectedOwnerForOil || null
+          owner_id: selectedAirlineForOil || null
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Oil Type Added Successfully",
-        description: `Added ${newOilTypeName}`,
+        description: `Added ${newOilTypeName} for ${selectedAirlineForOil ? airlines.find(a => a.id === selectedAirlineForOil)?.name : 'General use'}`,
       });
 
       setNewOilTypeName('');
-      setSelectedOwnerForOil('');
+      setSelectedAirlineForOil('');
       fetchOilTypes();
     } catch (error: any) {
       toast({
@@ -190,11 +190,28 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Plus className="w-5 h-5" />
-              <span>Add New Oil Type</span>
+              <span>Add Oil Type to Airline</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddOilType} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="airlineForOil">Select Airline First</Label>
+                <Select value={selectedAirlineForOil} onValueChange={setSelectedAirlineForOil} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select airline for oil type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">General (No specific airline)</SelectItem>
+                    {airlines.map((airline) => (
+                      <SelectItem key={airline.id} value={airline.id}>
+                        {airline.name} ({airline.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="oilTypeName">Oil Type Name</Label>
                 <Input
@@ -204,22 +221,6 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
                   placeholder="Enter oil type name"
                   required
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="oilOwner">Oil Owner (Optional)</Label>
-                <Select value={selectedOwnerForOil} onValueChange={setSelectedOwnerForOil}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {airlines.map((airline) => (
-                      <SelectItem key={airline.id} value={airline.id}>
-                        {airline.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <Button 
@@ -245,6 +246,7 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Code</TableHead>
+                <TableHead>Oil Types</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -254,6 +256,14 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
                 <TableRow key={airline.id}>
                   <TableCell className="font-medium">{airline.name}</TableCell>
                   <TableCell>{airline.code}</TableCell>
+                  <TableCell>
+                    <div className="text-xs">
+                      {oilTypes
+                        .filter(oil => oil.owner_id === airline.id)
+                        .map(oil => oil.name)
+                        .join(', ') || 'None'}
+                    </div>
+                  </TableCell>
                   <TableCell>{new Date(airline.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="space-x-2">
                     <Button variant="ghost" size="sm">
@@ -273,14 +283,14 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
       {/* Oil Types Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Oil Types</CardTitle>
+          <CardTitle>Oil Types by Airline</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Owner</TableHead>
+                <TableHead>Oil Type</TableHead>
+                <TableHead>Airline</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>

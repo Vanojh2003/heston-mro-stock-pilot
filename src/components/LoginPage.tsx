@@ -11,6 +11,7 @@ import { Eye, EyeOff } from 'lucide-react';
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,15 +23,43 @@ export const LoginPage = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        if (!name.trim()) {
+          throw new Error('Name is required');
+        }
+
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              name: name.trim()
+            }
           }
         });
         
         if (error) throw error;
+
+        // Add user to staff table
+        if (data.user) {
+          const { error: staffError } = await supabase
+            .from('staff')
+            .insert([{
+              name: name.trim(),
+              auth_user_id: data.user.id,
+              role: 'staff',
+              permissions: {
+                oil_stock_in: true,
+                oil_stock_out: true,
+                oil_management: false,
+                staff_management: false
+              }
+            }]);
+
+          if (staffError) {
+            console.error('Error adding to staff:', staffError);
+          }
+        }
         
         toast({
           title: "Account created successfully!",
@@ -78,6 +107,21 @@ export const LoginPage = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required={isSignUp}
+                  className="border-gray-300 focus:border-yellow-500"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

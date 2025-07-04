@@ -16,7 +16,7 @@ interface OilStockInProps {
 
 export const OilStockIn = ({ onBack }: OilStockInProps) => {
   const [batchNumber, setBatchNumber] = useState('');
-  const [selectedOwner, setSelectedOwner] = useState('');
+  const [selectedOwner, setSelectedOwner] = useState<'heston' | 'customer' | ''>('');
   const [selectedAirline, setSelectedAirline] = useState('');
   const [selectedOilType, setSelectedOilType] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -81,8 +81,23 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
     setLoading(true);
 
     try {
-      // Get current user to set as created_by
+      // Get current user and find their staff record
       const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Find staff record for current user
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (staffError || !staffData) {
+        throw new Error('Staff record not found. Please contact administrator.');
+      }
       
       const stockData = {
         batch_number: batchNumber,
@@ -91,8 +106,10 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
         owner_airline_id: selectedOwner === 'customer' ? selectedAirline : null,
         quantity_received: parseInt(quantity),
         quantity_remaining: parseInt(quantity),
-        created_by: user?.id
+        created_by: staffData.id
       };
+
+      console.log('Inserting stock data:', stockData);
 
       const { error } = await supabase
         .from('oil_stock')
@@ -115,6 +132,7 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
       // Refresh records
       fetchStockRecords();
     } catch (error: any) {
+      console.error('Error adding stock:', error);
       toast({
         title: "Error Adding Stock",
         description: error.message,
@@ -165,7 +183,7 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
 
             <div className="space-y-2">
               <Label htmlFor="owner">Stock Owner</Label>
-              <Select value={selectedOwner} onValueChange={setSelectedOwner} required>
+              <Select value={selectedOwner} onValueChange={(value: 'heston' | 'customer') => setSelectedOwner(value)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select owner" />
                 </SelectTrigger>
@@ -203,7 +221,7 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
                 <SelectContent>
                   {oilTypes.map((oilType) => (
                     <SelectItem key={oilType.id} value={oilType.id}>
-                      {oilType.name}
+                      {oilType.name} {oilType.airlines?.name && `(${oilType.airlines.name})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
