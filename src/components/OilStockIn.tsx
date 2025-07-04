@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -81,22 +81,59 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
     setLoading(true);
 
     try {
-      // Get current user and find their staff record
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Find staff record for current user
+      console.log('Current user ID:', user.id);
+
+      // Find staff record for current user with more detailed logging
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select('id')
+        .select('id, name, auth_user_id')
         .eq('auth_user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (staffError || !staffData) {
-        throw new Error('Staff record not found. Please contact administrator.');
+      console.log('Staff query result:', { staffData, staffError });
+
+      if (staffError) {
+        console.error('Staff query error:', staffError);
+        throw new Error(`Database error: ${staffError.message}`);
+      }
+
+      if (!staffData) {
+        console.log('No staff record found, attempting to create one...');
+        
+        // Try to get user metadata for name
+        const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown User';
+        
+        // Create staff record
+        const { data: newStaffData, error: createError } = await supabase
+          .from('staff')
+          .insert([{
+            name: userName,
+            auth_user_id: user.id,
+            role: 'staff',
+            permissions: {
+              oil_stock_in: true,
+              oil_stock_out: true,
+              oil_management: false,
+              staff_management: false
+            }
+          }])
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating staff record:', createError);
+          throw new Error('Could not create staff record. Please contact administrator.');
+        }
+
+        console.log('Created new staff record:', newStaffData);
+        staffData = newStaffData;
       }
       
       const stockData = {
@@ -140,6 +177,42 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEdit = (record: any) => {
+    toast({
+      title: "Edit Stock",
+      description: `Edit functionality for batch ${record.batch_number} coming soon`,
+    });
+  };
+
+  const handleDelete = async (record: any) => {
+    if (!confirm(`Are you sure you want to delete batch ${record.batch_number}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('oil_stock')
+        .delete()
+        .eq('id', record.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stock Deleted",
+        description: `Deleted batch ${record.batch_number}`,
+      });
+
+      fetchStockRecords();
+    } catch (error: any) {
+      console.error('Error deleting stock:', error);
+      toast({
+        title: "Error Deleting Stock",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -285,9 +358,14 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
                     <TableCell>{record.quantity_remaining}</TableCell>
                     <TableCell>{new Date(record.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(record)} className="text-red-600 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

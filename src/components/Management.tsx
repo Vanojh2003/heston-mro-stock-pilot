@@ -97,6 +97,42 @@ export const Management = ({ onBack }: ManagementProps) => {
     }));
   };
 
+  const handleEdit = (member: any) => {
+    toast({
+      title: "Edit Staff",
+      description: `Edit functionality for ${member.name} coming soon`,
+    });
+  };
+
+  const handleDelete = async (member: any) => {
+    if (!confirm(`Are you sure you want to delete ${member.name}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', member.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Staff Member Deleted",
+        description: `Deleted ${member.name}`,
+      });
+
+      fetchStaff();
+    } catch (error: any) {
+      console.error('Error deleting staff:', error);
+      toast({
+        title: "Error Deleting Staff Member",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -250,10 +286,10 @@ export const Management = ({ onBack }: ManagementProps) => {
                   </TableCell>
                   <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(member)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600">
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(member)} className="text-red-600 hover:text-red-700">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>

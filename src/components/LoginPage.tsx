@@ -27,6 +27,8 @@ export const LoginPage = () => {
           throw new Error('Name is required');
         }
 
+        console.log('Starting signup process for:', email);
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -38,27 +40,50 @@ export const LoginPage = () => {
           }
         });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Signup error:', error);
+          throw error;
+        }
 
-        // Add user to staff table
-        if (data.user) {
-          const { error: staffError } = await supabase
-            .from('staff')
-            .insert([{
-              name: name.trim(),
-              auth_user_id: data.user.id,
-              role: 'staff',
-              permissions: {
-                oil_stock_in: true,
-                oil_stock_out: true,
-                oil_management: false,
-                staff_management: false
+        console.log('Signup successful, user data:', data.user);
+
+        // Add user to staff table - wait a moment for auth user to be fully created
+        if (data.user && data.user.id) {
+          console.log('Adding user to staff table with ID:', data.user.id);
+          
+          // Wait a moment for the auth user to be fully processed
+          setTimeout(async () => {
+            try {
+              const { data: staffData, error: staffError } = await supabase
+                .from('staff')
+                .insert([{
+                  name: name.trim(),
+                  auth_user_id: data.user.id,
+                  role: 'staff',
+                  permissions: {
+                    oil_stock_in: true,
+                    oil_stock_out: true,
+                    oil_management: false,
+                    staff_management: false
+                  }
+                }])
+                .select()
+                .single();
+
+              if (staffError) {
+                console.error('Error adding to staff:', staffError);
+                toast({
+                  title: "Warning",
+                  description: "Account created but staff record may need manual setup. Please contact administrator.",
+                  variant: "destructive",
+                });
+              } else {
+                console.log('Staff record created successfully:', staffData);
               }
-            }]);
-
-          if (staffError) {
-            console.error('Error adding to staff:', staffError);
-          }
+            } catch (staffErr) {
+              console.error('Exception when adding staff:', staffErr);
+            }
+          }, 1000);
         }
         
         toast({
@@ -79,6 +104,7 @@ export const LoginPage = () => {
         });
       }
     } catch (error: any) {
+      console.error('Authentication error:', error);
       toast({
         title: "Authentication Error",
         description: error.message,
