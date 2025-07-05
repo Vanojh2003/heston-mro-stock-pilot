@@ -124,7 +124,7 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
               staff_management: false
             }
           }])
-          .select('id')
+          .select('id, name, auth_user_id')
           .single();
 
         if (createError) {
