@@ -91,7 +91,7 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
       console.log('Current user ID:', user.id);
 
       // Find staff record for current user with more detailed logging
-      const { data: staffData, error: staffError } = await supabase
+      let { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select('id, name, auth_user_id')
         .eq('auth_user_id', user.id)
