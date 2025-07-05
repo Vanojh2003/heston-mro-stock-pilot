@@ -18,7 +18,7 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
   const [newAirlineName, setNewAirlineName] = useState('');
   const [newAirlineCode, setNewAirlineCode] = useState('');
   const [newOilTypeName, setNewOilTypeName] = useState('');
-  const [selectedAirlineForOil, setSelectedAirlineForOil] = useState('');
+  const [selectedAirlineForOil, setSelectedAirlineForOil] = useState('general');
   const [airlines, setAirlines] = useState<any[]>([]);
   const [oilTypes, setOilTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,18 +100,22 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
         .from('oil_types')
         .insert([{
           name: newOilTypeName,
-          owner_id: selectedAirlineForOil || null
+          owner_id: selectedAirlineForOil === 'general' ? null : selectedAirlineForOil
         }]);
 
       if (error) throw error;
 
+      const airlineName = selectedAirlineForOil === 'general' 
+        ? 'General use' 
+        : airlines.find(a => a.id === selectedAirlineForOil)?.name;
+
       toast({
         title: "Oil Type Added Successfully",
-        description: `Added ${newOilTypeName} for ${selectedAirlineForOil ? airlines.find(a => a.id === selectedAirlineForOil)?.name : 'General use'}`,
+        description: `Added ${newOilTypeName} for ${airlineName}`,
       });
 
       setNewOilTypeName('');
-      setSelectedAirlineForOil('');
+      setSelectedAirlineForOil('general');
       fetchOilTypes();
     } catch (error: any) {
       toast({
@@ -121,6 +125,79 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditAirline = async (airline: any) => {
+    // TODO: Implement edit functionality
+    toast({
+      title: "Edit Airline",
+      description: "Edit functionality will be implemented soon.",
+    });
+  };
+
+  const handleDeleteAirline = async (airline: any) => {
+    if (!confirm(`Are you sure you want to delete ${airline.name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('airlines')
+        .delete()
+        .eq('id', airline.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Airline Deleted",
+        description: `Deleted ${airline.name}`,
+      });
+
+      fetchAirlines();
+      fetchOilTypes(); // Refresh oil types as well
+    } catch (error: any) {
+      toast({
+        title: "Error Deleting Airline",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditOilType = async (oilType: any) => {
+    // TODO: Implement edit functionality
+    toast({
+      title: "Edit Oil Type",
+      description: "Edit functionality will be implemented soon.",
+    });
+  };
+
+  const handleDeleteOilType = async (oilType: any) => {
+    if (!confirm(`Are you sure you want to delete ${oilType.name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('oil_types')
+        .delete()
+        .eq('id', oilType.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Oil Type Deleted",
+        description: `Deleted ${oilType.name}`,
+      });
+
+      fetchOilTypes();
+    } catch (error: any) {
+      toast({
+        title: "Error Deleting Oil Type",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -202,7 +279,7 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
                     <SelectValue placeholder="Select airline for oil type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">General (No specific airline)</SelectItem>
+                    <SelectItem value="general">General (No specific airline)</SelectItem>
                     {airlines.map((airline) => (
                       <SelectItem key={airline.id} value={airline.id}>
                         {airline.name} ({airline.code})
@@ -266,10 +343,10 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
                   </TableCell>
                   <TableCell>{new Date(airline.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditAirline(airline)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600">
+                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteAirline(airline)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
@@ -302,10 +379,10 @@ export const OilManagement = ({ onBack }: OilManagementProps) => {
                   <TableCell>{oilType.airlines?.name || 'General'}</TableCell>
                   <TableCell>{new Date(oilType.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditOilType(oilType)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600">
+                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteOilType(oilType)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>

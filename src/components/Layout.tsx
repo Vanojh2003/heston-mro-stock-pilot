@@ -14,6 +14,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [staffId, setStaffId] = useState<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener
@@ -21,6 +22,11 @@ export const Layout = ({ children }: LayoutProps) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Fetch user theme preference when authenticated
+        if (session?.user) {
+          fetchUserThemePreference(session.user.id);
+        }
       }
     );
 
@@ -28,6 +34,10 @@ export const Layout = ({ children }: LayoutProps) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserThemePreference(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -52,6 +62,47 @@ export const Layout = ({ children }: LayoutProps) => {
       root.classList.toggle('dark', theme === 'dark');
     }
   }, [theme]);
+
+  const fetchUserThemePreference = async (userId: string) => {
+    try {
+      const { data: staffData, error } = await supabase
+        .from('staff')
+        .select('theme_preference, id')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+      
+      if (!error && staffData) {
+        setStaffId(staffData.id);
+        if (staffData.theme_preference) {
+          setTheme(staffData.theme_preference);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching theme preference:', error);
+    }
+  };
+
+  const updateThemePreference = async (newTheme: 'light' | 'dark' | 'auto') => {
+    if (staffId) {
+      try {
+        const { error } = await supabase
+          .from('staff')
+          .update({ theme_preference: newTheme })
+          .eq('id', staffId);
+        
+        if (error) {
+          console.error('Error updating theme preference:', error);
+        }
+      } catch (error) {
+        console.error('Error updating theme preference:', error);
+      }
+    }
+  };
+
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'auto') => {
+    setTheme(newTheme);
+    updateThemePreference(newTheme);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -99,7 +150,7 @@ export const Layout = ({ children }: LayoutProps) => {
                 <Button
                   variant={theme === 'light' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTheme('light')}
+                  onClick={() => handleThemeChange('light')}
                   className="p-2"
                 >
                   <Sun className="w-4 h-4" />
@@ -107,7 +158,7 @@ export const Layout = ({ children }: LayoutProps) => {
                 <Button
                   variant={theme === 'dark' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTheme('dark')}
+                  onClick={() => handleThemeChange('dark')}
                   className="p-2"
                 >
                   <Moon className="w-4 h-4" />
@@ -115,7 +166,7 @@ export const Layout = ({ children }: LayoutProps) => {
                 <Button
                   variant={theme === 'auto' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTheme('auto')}
+                  onClick={() => handleThemeChange('auto')}
                   className="p-2"
                 >
                   <Monitor className="w-4 h-4" />

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -47,43 +46,36 @@ export const LoginPage = () => {
 
         console.log('Signup successful, user data:', data.user);
 
-        // Add user to staff table - wait a moment for auth user to be fully created
+        // Create staff record immediately after successful signup
         if (data.user && data.user.id) {
-          console.log('Adding user to staff table with ID:', data.user.id);
+          console.log('Creating staff record for user ID:', data.user.id);
           
-          // Wait a moment for the auth user to be fully processed
-          setTimeout(async () => {
-            try {
-              const { data: staffData, error: staffError } = await supabase
-                .from('staff')
-                .insert([{
-                  name: name.trim(),
-                  auth_user_id: data.user.id,
-                  role: 'staff',
-                  permissions: {
-                    oil_stock_in: true,
-                    oil_stock_out: true,
-                    oil_management: false,
-                    staff_management: false
-                  }
-                }])
-                .select()
-                .single();
-
-              if (staffError) {
-                console.error('Error adding to staff:', staffError);
-                toast({
-                  title: "Warning",
-                  description: "Account created but staff record may need manual setup. Please contact administrator.",
-                  variant: "destructive",
-                });
-              } else {
-                console.log('Staff record created successfully:', staffData);
+          const { data: staffData, error: staffError } = await supabase
+            .from('staff')
+            .insert([{
+              name: name.trim(),
+              auth_user_id: data.user.id,
+              role: 'staff',
+              permissions: {
+                oil_stock_in: true,
+                oil_stock_out: true,
+                oil_management: false,
+                staff_management: false
               }
-            } catch (staffErr) {
-              console.error('Exception when adding staff:', staffErr);
-            }
-          }, 1000);
+            }])
+            .select()
+            .single();
+
+          if (staffError) {
+            console.error('Error creating staff record:', staffError);
+            toast({
+              title: "Warning",
+              description: "Account created but staff record setup failed. Please contact administrator.",
+              variant: "destructive",
+            });
+          } else {
+            console.log('Staff record created successfully:', staffData);
+          }
         }
         
         toast({
