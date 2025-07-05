@@ -10,6 +10,7 @@ import { OilStockIn } from '@/components/OilStockIn';
 import { OilStockOut } from '@/components/OilStockOut';
 import { OilManagement } from '@/components/OilManagement';
 import { Management } from '@/components/Management';
+import { PermissionChecker } from '@/components/PermissionChecker';
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -79,15 +80,35 @@ const Index = () => {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'oil':
-        return <OilDashboard onNavigate={handleNavigate} onBack={handleBack} />;
+        return (
+          <PermissionChecker requiredPermission="oil_stock_in" onBack={handleBack} pageName="Oil Dashboard">
+            <OilDashboard onNavigate={handleNavigate} onBack={handleBack} />
+          </PermissionChecker>
+        );
       case 'oil-stock-in':
-        return <OilStockIn onBack={handleBack} />;
+        return (
+          <PermissionChecker requiredPermission="oil_stock_in" onBack={handleBack} pageName="Oil Stock In">
+            <OilStockIn onBack={handleBack} />
+          </PermissionChecker>
+        );
       case 'oil-stock-out':
-        return <OilStockOut onBack={handleBack} />;
+        return (
+          <PermissionChecker requiredPermission="oil_stock_out" onBack={handleBack} pageName="Oil Stock Out">
+            <OilStockOut onBack={handleBack} />
+          </PermissionChecker>
+        );
       case 'oil-management':
-        return <OilManagement onBack={handleBack} />;
+        return (
+          <PermissionChecker requiredPermission="oil_management" onBack={handleBack} pageName="Oil Management">
+            <OilManagement onBack={handleBack} />
+          </PermissionChecker>
+        );
       case 'management':
-        return <Management onBack={handleBack} />;
+        return (
+          <PermissionChecker requiredPermission="staff_management" onBack={handleBack} pageName="System Management">
+            <Management onBack={handleBack} />
+          </PermissionChecker>
+        );
       default:
         return <MainDashboard onNavigate={handleNavigate} />;
     }

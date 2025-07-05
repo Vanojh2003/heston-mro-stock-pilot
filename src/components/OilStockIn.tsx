@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,8 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
   const [oilTypes, setOilTypes] = useState<any[]>([]);
   const [stockRecords, setStockRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -181,10 +183,59 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
   };
 
   const handleEdit = (record: any) => {
-    toast({
-      title: "Edit Stock",
-      description: `Edit functionality for batch ${record.batch_number} coming soon`,
-    });
+    setEditingRecord(record);
+    setBatchNumber(record.batch_number);
+    setSelectedOwner(record.owner);
+    setSelectedAirline(record.owner_airline_id || '');
+    setSelectedOilType(record.oil_type_id);
+    setQuantity(record.quantity_received.toString());
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateRecord = async () => {
+    if (!editingRecord) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('oil_stock')
+        .update({
+          batch_number: batchNumber,
+          owner: selectedOwner as 'heston' | 'customer',
+          owner_airline_id: selectedOwner === 'customer' ? selectedAirline : null,
+          oil_type_id: selectedOilType,
+          quantity_received: parseInt(quantity),
+          quantity_remaining: parseInt(quantity),
+        })
+        .eq('id', editingRecord.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Stock Updated Successfully",
+        description: `Updated batch ${batchNumber}`,
+      });
+
+      setEditDialogOpen(false);
+      setEditingRecord(null);
+      // Reset form
+      setBatchNumber('');
+      setSelectedOwner('');
+      setSelectedAirline('');
+      setSelectedOilType('');
+      setQuantity('');
+      
+      fetchStockRecords();
+    } catch (error: any) {
+      console.error('Error updating stock:', error);
+      toast({
+        title: "Error Updating Stock",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (record: any) => {
@@ -359,9 +410,43 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
                     <TableCell>{new Date(record.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+                        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Stock Record</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid grid-cols-1 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="editBatch">Batch Number</Label>
+                                <Input
+                                  id="editBatch"
+                                  value={batchNumber}
+                                  onChange={(e) => setBatchNumber(e.target.value)}
+                                  placeholder="Enter batch number"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="editQuantity">Quantity</Label>
+                                <Input
+                                  id="editQuantity"
+                                  type="number"
+                                  value={quantity}
+                                  onChange={(e) => setQuantity(e.target.value)}
+                                  placeholder="Enter quantity"
+                                  min="1"
+                                />
+                              </div>
+                              <Button onClick={handleUpdateRecord} disabled={loading}>
+                                {loading ? 'Updating...' : 'Update Record'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(record)} className="text-red-600 hover:text-red-700">
                           <Trash2 className="w-4 h-4" />
                         </Button>
