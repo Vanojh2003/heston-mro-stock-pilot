@@ -47,6 +47,13 @@ export const PermissionChecker = ({
         // Admin users have all permissions
         const isAdmin = staffData.role === 'admin';
         const hasSpecificPermission = staffData.permissions?.[requiredPermission];
+        
+        console.log(`Checking permission: ${requiredPermission}`);
+        console.log(`User role: ${staffData.role}`);
+        console.log(`User permissions:`, staffData.permissions);
+        console.log(`Has specific permission: ${hasSpecificPermission}`);
+        console.log(`Is admin: ${isAdmin}`);
+        
         setHasPermission(isAdmin || hasSpecificPermission);
       }
     } catch (error) {

@@ -5,18 +5,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Minus, Edit2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Minus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface OilStockOutProps {
   onBack: () => void;
@@ -37,6 +48,15 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
   const [loading, setLoading] = useState(false);
   const [showStockAlert, setShowStockAlert] = useState(false);
   const [stockAlertMessage, setStockAlertMessage] = useState('');
+  
+  // Edit dialog states
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editAirline, setEditAirline] = useState('');
+  const [editAircraftReg, setEditAircraftReg] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editStaff, setEditStaff] = useState('');
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -153,7 +173,6 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
     setLoading(true);
 
     try {
-      // Find the first available batch (FIFO)
       const firstAvailableBatch = availableStock.find(stock => stock.quantity_remaining > 0);
       
       if (!firstAvailableBatch) {
@@ -193,6 +212,79 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
     } catch (error: any) {
       toast({
         title: "Error Recording Stock Out",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (record: any) => {
+    setEditingRecord(record);
+    setEditAirline(record.airline_id);
+    setEditAircraftReg(record.aircraft_registration);
+    setEditQuantity(record.quantity_used.toString());
+    setEditStaff(record.staff_id);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingRecord) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('oil_usage')
+        .update({
+          airline_id: editAirline,
+          aircraft_registration: editAircraftReg,
+          quantity_used: parseInt(editQuantity),
+          staff_id: editStaff,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingRecord.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Usage Record Updated",
+        description: "The usage record has been updated successfully.",
+      });
+
+      setEditDialogOpen(false);
+      fetchUsageRecords();
+    } catch (error: any) {
+      toast({
+        title: "Error Updating Record",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (recordId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('oil_usage')
+        .delete()
+        .eq('id', recordId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Usage Record Deleted",
+        description: "The usage record has been deleted successfully.",
+      });
+
+      fetchUsageRecords();
+      fetchAvailableStock(); // Refresh stock as quantities will be restored
+    } catch (error: any) {
+      toast({
+        title: "Error Deleting Record",
         description: error.message,
         variant: "destructive",
       });
@@ -358,10 +450,111 @@ export const OilStockOut = ({ onBack }: OilStockOutProps) => {
                     <TableCell>{record.aircraft_registration}</TableCell>
                     <TableCell>{record.staff?.name}</TableCell>
                     <TableCell>{new Date(record.usage_date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
+                    <TableCell className="space-x-2">
+                      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEdit(record)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Usage Record</DialogTitle>
+                            <DialogDescription>
+                              Update the usage record details below.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="editAirline">Customer Airline</Label>
+                              <Select value={editAirline} onValueChange={setEditAirline}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select airline" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {airlines.map((airline) => (
+                                    <SelectItem key={airline.id} value={airline.id}>
+                                      {airline.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="editAircraftReg">Aircraft Registration</Label>
+                              <Input
+                                id="editAircraftReg"
+                                value={editAircraftReg}
+                                onChange={(e) => setEditAircraftReg(e.target.value.toUpperCase())}
+                                placeholder="e.g., V8DLD"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="editQuantity">Quantity Used</Label>
+                              <Input
+                                id="editQuantity"
+                                type="number"
+                                value={editQuantity}
+                                onChange={(e) => setEditQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                min="1"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="editStaff">Staff Member</Label>
+                              <Select value={editStaff} onValueChange={setEditStaff}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select staff member" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {staff.map((member) => (
+                                    <SelectItem key={member.id} value={member.id}>
+                                      {member.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button type="button" onClick={handleEditSubmit} disabled={loading}>
+                              {loading ? 'Updating...' : 'Update Record'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-red-600">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Usage Record</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this usage record? This action cannot be undone and will restore the oil quantity to stock.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(record.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
