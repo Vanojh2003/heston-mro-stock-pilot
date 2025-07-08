@@ -1,47 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Moon, Sun, Monitor, LogOut } from 'lucide-react';
+import { Moon, Sun, Monitor } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved as 'light' | 'dark' | 'auto') || 'auto';
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [staffId, setStaffId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Fetch user theme preference when authenticated
-        if (session?.user) {
-          fetchUserThemePreference(session.user.id);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserThemePreference(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -63,49 +34,9 @@ export const Layout = ({ children }: LayoutProps) => {
     }
   }, [theme]);
 
-  const fetchUserThemePreference = async (userId: string) => {
-    try {
-      const { data: staffData, error } = await supabase
-        .from('staff')
-        .select('theme_preference, id')
-        .eq('auth_user_id', userId)
-        .maybeSingle();
-      
-      if (!error && staffData) {
-        setStaffId(staffData.id);
-        if (staffData.theme_preference) {
-          setTheme(staffData.theme_preference);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching theme preference:', error);
-    }
-  };
-
-  const updateThemePreference = async (newTheme: 'light' | 'dark' | 'auto') => {
-    if (staffId) {
-      try {
-        const { error } = await supabase
-          .from('staff')
-          .update({ theme_preference: newTheme })
-          .eq('id', staffId);
-        
-        if (error) {
-          console.error('Error updating theme preference:', error);
-        }
-      } catch (error) {
-        console.error('Error updating theme preference:', error);
-      }
-    }
-  };
-
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'auto') => {
     setTheme(newTheme);
-    updateThemePreference(newTheme);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.setItem('theme', newTheme);
   };
 
   const formatDateTime = (date: Date) => {
@@ -173,23 +104,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 </Button>
               </div>
 
-              {/* User Info and Logout */}
-              {user && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {user.email}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSignOut}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <LogOut className="w-4 h-4 mr-1" />
-                    Logout
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </div>
