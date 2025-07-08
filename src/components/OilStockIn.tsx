@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowLeft, Plus, Edit2, Trash2, Search, Filter, Trash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,9 +24,14 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
   const [airlines, setAirlines] = useState<any[]>([]);
   const [oilTypes, setOilTypes] = useState<any[]>([]);
   const [stockRecords, setStockRecords] = useState<any[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterOwner, setFilterOwner] = useState('');
+  const [filterOilType, setFilterOilType] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,6 +39,32 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
     fetchOilTypes();
     fetchStockRecords();
   }, []);
+
+  // Filter and search effect
+  useEffect(() => {
+    let filtered = stockRecords;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(record =>
+        record.batch_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.oil_types?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.airlines?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply owner filter
+    if (filterOwner) {
+      filtered = filtered.filter(record => record.owner === filterOwner);
+    }
+
+    // Apply oil type filter
+    if (filterOilType) {
+      filtered = filtered.filter(record => record.oil_type_id === filterOilType);
+    }
+
+    setFilteredRecords(filtered);
+  }, [stockRecords, searchTerm, filterOwner, filterOilType]);
 
   const fetchAirlines = async () => {
     const { data, error } = await supabase
@@ -267,6 +299,56 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedRecords.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedRecords.size} selected records?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('oil_stock')
+        .delete()
+        .in('id', Array.from(selectedRecords));
+
+      if (error) throw error;
+
+      toast({
+        title: "Bulk Delete Successful",
+        description: `Deleted ${selectedRecords.size} records`,
+      });
+
+      setSelectedRecords(new Set());
+      fetchStockRecords();
+    } catch (error: any) {
+      console.error('Error bulk deleting records:', error);
+      toast({
+        title: "Error Bulk Deleting Records",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectRecord = (recordId: string, checked: boolean) => {
+    const newSelected = new Set(selectedRecords);
+    if (checked) {
+      newSelected.add(recordId);
+    } else {
+      newSelected.delete(recordId);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRecords(new Set(filteredRecords.map(record => record.id)));
+    } else {
+      setSelectedRecords(new Set());
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -382,12 +464,67 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
       <Card>
         <CardHeader>
           <CardTitle>Stock Records</CardTitle>
+          {/* Search and Filter Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <div className="flex items-center space-x-2 flex-1">
+              <Search className="w-4 h-4" />
+              <Input
+                placeholder="Search by batch number, oil type, or customer..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4" />
+              <Select value={filterOwner} onValueChange={setFilterOwner}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Owners" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Owners</SelectItem>
+                  <SelectItem value="heston">HESTON MRO</SelectItem>
+                  <SelectItem value="customer">Customer</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterOilType} onValueChange={setFilterOilType}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Oil Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Oil Types</SelectItem>
+                  {oilTypes.map((oilType) => (
+                    <SelectItem key={oilType.id} value={oilType.id}>
+                      {oilType.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedRecords.size > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  className="flex items-center space-x-2"
+                >
+                  <Trash className="w-4 h-4" />
+                  <span>Delete ({selectedRecords.size})</span>
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-teal-600 hover:bg-teal-600">
+                  <TableHead className="text-white w-12">
+                    <Checkbox
+                      checked={filteredRecords.length > 0 && selectedRecords.size === filteredRecords.length}
+                      onCheckedChange={handleSelectAll}
+                      className="border-white data-[state=checked]:bg-white data-[state=checked]:text-teal-600"
+                    />
+                  </TableHead>
                   <TableHead className="text-white">Batch #</TableHead>
                   <TableHead className="text-white">Oil Type</TableHead>
                   <TableHead className="text-white">Oil Owner</TableHead>
@@ -399,8 +536,14 @@ export const OilStockIn = ({ onBack }: OilStockInProps) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockRecords.map((record, index) => (
+                {filteredRecords.map((record, index) => (
                   <TableRow key={record.id} className={index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-950/20' : ''}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRecords.has(record.id)}
+                        onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{record.batch_number}</TableCell>
                     <TableCell>{record.oil_types?.name}</TableCell>
                     <TableCell className="capitalize">{record.owner}</TableCell>
