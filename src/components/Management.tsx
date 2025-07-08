@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit2, Trash2, Users } from 'lucide-react';
@@ -16,8 +15,6 @@ interface ManagementProps {
 
 export const Management = ({ onBack }: ManagementProps) => {
   const [staffName, setStaffName] = useState('');
-  const [staffUsername, setStaffUsername] = useState('');
-  const [staffRole, setStaffRole] = useState('staff');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
@@ -50,9 +47,7 @@ export const Management = ({ onBack }: ManagementProps) => {
       const { error } = await supabase
         .from('staff')
         .insert([{
-          name: staffName,
-          username: staffUsername,
-          role: staffRole as 'admin' | 'manager' | 'staff'
+          name: staffName
         }]);
 
       if (error) throw error;
@@ -64,8 +59,6 @@ export const Management = ({ onBack }: ManagementProps) => {
 
       // Reset form
       setStaffName('');
-      setStaffUsername('');
-      setStaffRole('staff');
       
       fetchStaff();
     } catch (error: any) {
@@ -82,8 +75,6 @@ export const Management = ({ onBack }: ManagementProps) => {
   const handleEdit = (member: any) => {
     setEditingStaff(member);
     setStaffName(member.name);
-    setStaffUsername(member.username || '');
-    setStaffRole(member.role);
     setEditDialogOpen(true);
   };
 
@@ -95,9 +86,7 @@ export const Management = ({ onBack }: ManagementProps) => {
       const { error } = await supabase
         .from('staff')
         .update({
-          name: staffName,
-          username: staffUsername,
-          role: staffRole as 'admin' | 'manager' | 'staff'
+          name: staffName
         })
         .eq('id', editingStaff.id);
 
@@ -112,8 +101,6 @@ export const Management = ({ onBack }: ManagementProps) => {
       setEditingStaff(null);
       // Reset form
       setStaffName('');
-      setStaffUsername('');
-      setStaffRole('staff');
       
       fetchStaff();
     } catch (error: any) {
@@ -184,41 +171,15 @@ export const Management = ({ onBack }: ManagementProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddStaff} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="staffName">Full Name</Label>
-                <Input
-                  id="staffName"
-                  value={staffName}
-                  onChange={(e) => setStaffName(e.target.value)}
-                  placeholder="Enter full name"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="staffUsername">Username</Label>
-                <Input
-                  id="staffUsername"
-                  value={staffUsername}
-                  onChange={(e) => setStaffUsername(e.target.value)}
-                  placeholder="Enter username"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="staffRole">Role</Label>
-                <Select value={staffRole} onValueChange={setStaffRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="staffName">Full Name</Label>
+              <Input
+                id="staffName"
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                placeholder="Enter full name"
+                required
+              />
             </div>
 
             <Button 
@@ -245,8 +206,6 @@ export const Management = ({ onBack }: ManagementProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -255,8 +214,6 @@ export const Management = ({ onBack }: ManagementProps) => {
               {staff.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.username || 'Not set'}</TableCell>
-                  <TableCell className="capitalize">{member.role}</TableCell>
                   <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="space-x-2">
                     <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -278,28 +235,6 @@ export const Management = ({ onBack }: ManagementProps) => {
                               onChange={(e) => setStaffName(e.target.value)}
                               placeholder="Enter full name"
                             />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="editUsername">Username</Label>
-                            <Input
-                              id="editUsername"
-                              value={staffUsername}
-                              onChange={(e) => setStaffUsername(e.target.value)}
-                              placeholder="Enter username"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="editRole">Role</Label>
-                            <Select value={staffRole} onValueChange={setStaffRole}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="staff">Staff</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
                           </div>
                           <Button onClick={handleUpdateStaff} disabled={loading}>
                             {loading ? 'Updating...' : 'Update Staff Member'}
